@@ -9,8 +9,9 @@ function createResizeObserver() {
 		return new ResizeObserver((entries) => entries.forEach(e => onResize(e.target)));
 	}
 	// If not a modern environment, we use a Map instead of a WeakMap, which is iterable.
-	window.addEventListener('resize', () => assignedElements.forEach((_, el) => onResize(el)));
-	return { observe: () => {}, unobserve: () => {} };
+	const resizeCallback = () => assignedElements.forEach((_, el) => onResize(el));
+	window.addEventListener('resize', resizeCallback);
+	return { observe: () => {}, unobserve: () => {}, disconnect: () => window.removeEventListener('resize', resizeCallback)};
 }
 
 function onResize(el) {
@@ -147,7 +148,6 @@ function assign(ta) {
 		ta.removeEventListener('autosize:destroy', destroy);
 		ta.removeEventListener('autosize:update', fullSetHeight);
 		ta.removeEventListener('input', handleInput);
-		window.removeEventListener('resize', fullSetHeight); // future todo: consider replacing with ResizeObserver
 		Object.keys(style).forEach(key => ta.style[key] = style[key]);
 		assignedElements.delete(ta);
 		resizeObserver.unobserve(ta);
