@@ -1,4 +1,24 @@
-const assignedElements = new Map();
+const modernEnv = typeof ResizeObserver === "function" && typeof WeakMap === "function";
+
+const assignedElements = modernEnv ? new WeakMap() : new Map();
+
+const resizeObserver = createResizeObserver();
+
+function createResizeObserver() {
+	if (modernEnv) {
+		return new ResizeObserver((entries) => entries.forEach(e => onResize(e.target)));
+	}
+	// If not a modern environment, we use a Map instead of a WeakMap, which is iterable.
+	window.addEventListener('resize', () => assignedElements.forEach((_, el) => onResize(el)));
+	return { observe: () => {}, unobserve: () => {} };
+}
+
+function onResize(el) {
+	const instance = assignedElements.get(el);
+	if (instance !== undefined) {
+		instance.update();
+	}
+}
 
 function assign(ta) {
 	if (!ta || !ta.nodeName || ta.nodeName !== 'TEXTAREA' || assignedElements.has(ta)) return;
@@ -130,6 +150,7 @@ function assign(ta) {
 		window.removeEventListener('resize', fullSetHeight); // future todo: consider replacing with ResizeObserver
 		Object.keys(style).forEach(key => ta.style[key] = style[key]);
 		assignedElements.delete(ta);
+		resizeObserver.unobserve(ta);
 	}).bind(ta, {
 		height: ta.style.height,
 		resize: ta.style.resize,
@@ -142,7 +163,7 @@ function assign(ta) {
 	ta.addEventListener('autosize:destroy', destroy);
 	ta.addEventListener('autosize:update', fullSetHeight);
 	ta.addEventListener('input', handleInput);
-	window.addEventListener('resize', fullSetHeight); // future todo: consider replacing with ResizeObserver
+	resizeObserver.observe(ta);
 	ta.style.overflowX = 'hidden';
 	ta.style.wordWrap = 'break-word';
 
