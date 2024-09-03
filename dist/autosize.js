@@ -97,27 +97,6 @@
 	      ta.style.resize = 'horizontal';
 	    }
 
-	    var overflows = getParentOverflows(ta);
-	    var docTop = document.documentElement && document.documentElement.scrollTop; // Needed for Mobile IE (ticket #240)
-	    // we capture the scroll height based on the parent (with the parent scrollbar if required)
-
-	    var scrollHeight = ta.scrollHeight; // we reset the textarea's height and potentially hide the parent scrollbar
-
-	    ta.style.height = ''; // we set the new height
-	    // the initial code was fetching the scrollHeight value again but was incorrect because of the previous reset
-
-	    ta.style.height = scrollHeight + heightOffset + 'px'; // used to check if an update is actually necessary on window.resize
-
-	    clientWidth = ta.clientWidth; // prevents scroll-position jumping
-
-	    overflows.forEach(function (el) {
-	      el.node.scrollTop = el.scrollTop;
-	    });
-
-	    if (docTop) {
-	      document.documentElement.scrollTop = docTop;
-	    }
-
 	    var restoreScrollTops; // remove inline height style to accurately measure situations where the textarea should shrink
 	    // however, skip this step if the new value appends to the previous value, as textarea height should only have grown
 
