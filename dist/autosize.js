@@ -3,11 +3,56 @@
 	typeof define === 'function' && define.amd ? define(factory) :
 	(global = global || self, global.autosize = factory());
 }(this, (function () {
-	var assignedElements = new Map();
+	var modernEnv = typeof ResizeObserver === "function" && typeof WeakMap === "function";
+	var assignedElements = modernEnv ? new WeakMap() : new Map();
+	var resizeObserver = createResizeObserver();
+
+	function createResizeObserver() {
+	  if (modernEnv) {
+	    return new ResizeObserver(function (entries) {
+	      return entries.forEach(function (e) {
+	        return onResize(e.target);
+	      });
+	    });
+	  } // If not a modern environment, we use a Map instead of a WeakMap, which is iterable.
+
+
+	  var resizeCallback = function resizeCallback() {
+	    return assignedElements.forEach(function (_, el) {
+	      return onResize(el);
+	    });
+	  };
+
+	  window.addEventListener('resize', resizeCallback);
+	  return {
+	    observe: function observe() {},
+	    unobserve: function unobserve() {},
+	    disconnect: function disconnect() {
+	      return window.removeEventListener('resize', resizeCallback);
+	    }
+	  };
+	}
+
+	function getRelevantStyles(c) {
+	  return c.width + "-" + c.height + "-" + c.padding + "-" + c.borderWidth + "-" + c.overflow + "-" + c.boxSizing + "-" + c.textAlign;
+	}
+
+	function onResize(el) {
+	  var instance = assignedElements.get(el);
+
+	  if (instance !== undefined && el.scrollHeight > 0) {
+	    var styles = getRelevantStyles(instance.computed);
+
+	    if (styles !== instance.previousStyles) {
+	      instance.update();
+	    }
+	  }
+	}
 
 	function assign(ta) {
 	  if (!ta || !ta.nodeName || ta.nodeName !== 'TEXTAREA' || assignedElements.has(ta)) return;
 	  var previousHeight = null;
+	  var previousStyles = null;
 
 	  function cacheScrollTops(el) {
 	    var arr = [];
@@ -50,6 +95,27 @@
 	      ta.style.resize = 'none';
 	    } else if (computed.resize === 'both') {
 	      ta.style.resize = 'horizontal';
+	    }
+
+	    var overflows = getParentOverflows(ta);
+	    var docTop = document.documentElement && document.documentElement.scrollTop; // Needed for Mobile IE (ticket #240)
+	    // we capture the scroll height based on the parent (with the parent scrollbar if required)
+
+	    var scrollHeight = ta.scrollHeight; // we reset the textarea's height and potentially hide the parent scrollbar
+
+	    ta.style.height = ''; // we set the new height
+	    // the initial code was fetching the scrollHeight value again but was incorrect because of the previous reset
+
+	    ta.style.height = scrollHeight + heightOffset + 'px'; // used to check if an update is actually necessary on window.resize
+
+	    clientWidth = ta.clientWidth; // prevents scroll-position jumping
+
+	    overflows.forEach(function (el) {
+	      el.node.scrollTop = el.scrollTop;
+	    });
+
+	    if (docTop) {
+	      document.documentElement.scrollTop = docTop;
 	    }
 
 	    var restoreScrollTops; // remove inline height style to accurately measure situations where the textarea should shrink
@@ -111,6 +177,8 @@
 	        testForHeightReduction: true
 	      });
 	    }
+
+	    previousStyles = getRelevantStyles(computed);
 	  }
 
 	  function fullSetHeight() {
@@ -137,12 +205,11 @@
 	    ta.removeEventListener('autosize:destroy', destroy);
 	    ta.removeEventListener('autosize:update', fullSetHeight);
 	    ta.removeEventListener('input', handleInput);
-	    window.removeEventListener('resize', fullSetHeight); // future todo: consider replacing with ResizeObserver
-
 	    Object.keys(style).forEach(function (key) {
 	      return ta.style[key] = style[key];
 	    });
 	    assignedElements["delete"](ta);
+	    resizeObserver.unobserve(ta);
 	  }.bind(ta, {
 	    height: ta.style.height,
 	    resize: ta.style.resize,
@@ -155,13 +222,18 @@
 	  ta.addEventListener('autosize:destroy', destroy);
 	  ta.addEventListener('autosize:update', fullSetHeight);
 	  ta.addEventListener('input', handleInput);
-	  window.addEventListener('resize', fullSetHeight); // future todo: consider replacing with ResizeObserver
-
+	  resizeObserver.observe(ta);
 	  ta.style.overflowX = 'hidden';
 	  ta.style.wordWrap = 'break-word';
 	  assignedElements.set(ta, {
 	    destroy: destroy,
-	    update: fullSetHeight
+	    update: fullSetHeight,
+
+	    get previousStyles() {
+	      return previousStyles;
+	    },
+
+	    computed: computed
 	  });
 	  fullSetHeight();
 	}
