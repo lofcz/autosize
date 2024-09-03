@@ -14,10 +14,17 @@ function createResizeObserver() {
 	return { observe: () => {}, unobserve: () => {}, disconnect: () => window.removeEventListener('resize', resizeCallback)};
 }
 
+function getRelevantStyles(c) {
+	return `${c.width}-${c.height}-${c.padding}-${c.borderWidth}-${c.overflow}-${c.boxSizing}-${c.textAlign}`;
+}
+
 function onResize(el) {
 	const instance = assignedElements.get(el);
-	if (instance !== undefined) {
-		instance.update();
+	if (instance !== undefined && el.scrollHeight > 0) {
+		const styles = getRelevantStyles(instance.computed);
+		if (styles !== instance.previousStyles) {
+			instance.update();
+		}
 	}
 }
 
@@ -25,6 +32,7 @@ function assign(ta) {
 	if (!ta || !ta.nodeName || ta.nodeName !== 'TEXTAREA' || assignedElements.has(ta)) return;
 
 	let previousHeight = null;
+	let previousStyles = null;
 
 	function cacheScrollTops(el) {
 		const arr = [];
@@ -120,6 +128,8 @@ function assign(ta) {
 				testForHeightReduction: true,
 			});
 		}
+
+		previousStyles = getRelevantStyles(computed);
 	}
 
 	function fullSetHeight() {
@@ -170,6 +180,8 @@ function assign(ta) {
 	assignedElements.set(ta, {
 		destroy,
 		update: fullSetHeight,
+		get previousStyles() { return previousStyles; },
+		computed,
 	});
 
 	fullSetHeight();
