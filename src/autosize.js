@@ -105,11 +105,11 @@ function assign(ta) {
 
 		if (computed.maxHeight !== 'none' && newHeight > parseFloat(computed.maxHeight)) {
 			if (computed.overflowY === 'hidden') {
-				ta.style.overflow = 'scroll';
+				ta.style.overflowY = 'scroll';
 			}
 			newHeight = parseFloat(computed.maxHeight);
 		} else if (computed.overflowY !== 'hidden') {
-			ta.style.overflow = 'hidden';
+			ta.style.overflowY = 'hidden';
 		}
 
 		ta.style.height = newHeight+'px';
@@ -127,10 +127,10 @@ function assign(ta) {
 			previousHeight = newHeight;
 		}
 
-		if (initialOverflowY !== computed.overflow && !restoreTextAlign) {
+		if (initialOverflowY !== computed.overflowY && !restoreTextAlign) {
 			const textAlign = computed.textAlign;
 
-			if (computed.overflow === 'hidden') {
+			if (computed.overflowY === 'hidden') {
 				// Webkit fails to reflow text after overflow is hidden,
 				// even if hiding overflow would allow text to fit more compactly.
 				// The following is intended to force the necessary text reflow.
